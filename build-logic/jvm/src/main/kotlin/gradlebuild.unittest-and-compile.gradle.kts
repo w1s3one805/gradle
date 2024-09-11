@@ -27,7 +27,10 @@ import gradlebuild.basics.maxTestDistributionPartitionSecond
 import gradlebuild.basics.maxTestDistributionRemoteExecutors
 import gradlebuild.basics.predictiveTestSelectionEnabled
 import gradlebuild.basics.rerunAllTests
+import gradlebuild.basics.buildRunningOnCi
+import gradlebuild.basics.testDistributionDogfoodingTag
 import gradlebuild.basics.testDistributionEnabled
+import gradlebuild.basics.testDistributionServerUrl
 import gradlebuild.basics.testJavaVendor
 import gradlebuild.basics.testJavaVersion
 import gradlebuild.basics.testing.excludeSpockAnnotation
@@ -139,10 +142,10 @@ fun addDependencies() {
         configurations["runtimeClasspath"].extendsFrom(platformImplementation)
         configurations["testCompileClasspath"].extendsFrom(platformImplementation)
         configurations["testRuntimeClasspath"].extendsFrom(platformImplementation)
-        platformImplementation.withDependencies {
-            // use 'withDependencies' to not attempt to find platform project during script compilation
-            add(project.dependencies.create(platform(project(":distributions-dependencies"))))
-        }
+        // use lazy API to not attempt to find platform project during script compilation
+        platformImplementation.dependencies.addLater(provider {
+            project.dependencies.platform(project.dependencies.create(project(":distributions-dependencies")))
+        })
     }
 }
 
@@ -265,7 +268,7 @@ fun configureTests() {
 
         extensions.findByType<DevelocityTestConfiguration>()?.testDistribution {
             this as TestDistributionConfigurationInternal
-            server = uri("https://ge.gradle.org")
+            server = uri(testDistributionServerUrl.orElse("https://ge.gradle.org"))
 
             if (project.testDistributionEnabled && !isUnitTest() && !isPerformanceProject() && !isNativeProject() && !isKotlinDslToolingBuilders()) {
                 enabled = true
@@ -275,14 +278,15 @@ fun configureTests() {
                 maxRemoteExecutors = if (project.isPerformanceProject()) 0 else project.maxTestDistributionRemoteExecutors
                 maxLocalExecutors = project.maxTestDistributionLocalExecutors
 
+                val dogfoodingTag = testDistributionDogfoodingTag.getOrElse("gbt-dogfooding")
                 if (BuildEnvironment.isCiServer) {
                     when {
-                        OperatingSystem.current().isLinux -> requirements = listOf("os=linux", "gbt-dogfooding")
-                        OperatingSystem.current().isWindows -> requirements = listOf("os=windows", "gbt-dogfooding")
-                        OperatingSystem.current().isMacOsX -> requirements = listOf("os=macos", "gbt-dogfooding")
+                        OperatingSystem.current().isLinux -> requirements = listOf("os=linux", dogfoodingTag)
+                        OperatingSystem.current().isWindows -> requirements = listOf("os=windows", dogfoodingTag)
+                        OperatingSystem.current().isMacOsX -> requirements = listOf("os=macos", dogfoodingTag)
                     }
                 } else {
-                    requirements = listOf("gbt-dogfooding")
+                    requirements = listOf(dogfoodingTag)
                 }
             }
         }
@@ -302,7 +306,7 @@ fun configureTests() {
 
 fun removeTeamcityTempProperty() {
     // Undo: https://github.com/JetBrains/teamcity-gradle/blob/e1dc98db0505748df7bea2e61b5ee3a3ba9933db/gradle-runner-agent/src/main/scripts/init.gradle#L818
-    if (project.hasProperty("teamcity")) {
+    if (project.buildRunningOnCi.get() && project.hasProperty("teamcity")) {
         @Suppress("UNCHECKED_CAST") val teamcity = project.property("teamcity") as MutableMap<String, Any>
         teamcity["teamcity.build.tempDir"] = ""
     }

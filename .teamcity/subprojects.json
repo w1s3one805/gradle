@@ -133,6 +133,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "build-operations-trace",
+    "path": "platforms/core-runtime/build-operations-trace",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "build-option",
     "path": "platforms/core-runtime/build-option",
     "unitTests": true,
@@ -490,6 +497,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "file-operations",
+    "path": "platforms/core-configuration/file-operations",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "file-temp",
     "path": "platforms/core-runtime/file-temp",
     "unitTests": true,
@@ -613,6 +627,13 @@
     "path": "platforms/core-runtime/instrumentation-declarations",
     "unitTests": false,
     "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "instrumentation-reporting",
+    "path": "platforms/core-runtime/instrumentation-reporting",
+    "unitTests": false,
+    "functionalTests": true,
     "crossVersionTests": false
   },
   {
@@ -975,7 +996,7 @@
   {
     "name": "problems",
     "path": "platforms/ide/problems",
-    "unitTests": false,
+    "unitTests": true,
     "functionalTests": true,
     "crossVersionTests": false
   },
@@ -987,10 +1008,24 @@
     "crossVersionTests": false
   },
   {
-    "name": "process-services",
-    "path": "platforms/core-runtime/process-services",
+    "name": "problems-rendering",
+    "path": "platforms/ide/problems-rendering",
+    "unitTests": true,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "process-memory-services",
+    "path": "platforms/core-runtime/process-memory-services",
     "unitTests": true,
     "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
+    "name": "process-services",
+    "path": "platforms/core-runtime/process-services",
+    "unitTests": false,
+    "functionalTests": false,
     "crossVersionTests": false
   },
   {
@@ -1012,6 +1047,13 @@
     "path": "platforms/software/publish",
     "unitTests": true,
     "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
+    "name": "report-rendering",
+    "path": "platforms/core-runtime/report-rendering",
+    "unitTests": true,
+    "functionalTests": false,
     "crossVersionTests": false
   },
   {

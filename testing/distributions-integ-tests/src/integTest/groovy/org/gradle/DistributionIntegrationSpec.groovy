@@ -34,7 +34,7 @@ import static org.hamcrest.MatcherAssert.assertThat
 
 abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
 
-    protected static final THIRD_PARTY_LIB_COUNT = 144
+    protected static final THIRD_PARTY_LIB_COUNT = 145
 
     @Shared
     String baseVersion = GradleVersion.current().baseVersion.version
@@ -50,6 +50,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "build-cache-spi",
         "build-events",
         "build-operations",
+        "build-operations-trace",
         "build-option",
         "build-process-services",
         "build-state",
@@ -73,6 +74,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "enterprise-workers",
         "execution",
         "file-collections",
+        "file-operations",
         "file-temp",
         "file-watching",
         "files",
@@ -83,6 +85,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "input-tracking",
         "installation-beacon",
         "instrumentation-agent-services",
+        "instrumentation-reporting",
         "internal-instrumentation-api",
         "io",
         "java-api-extractor",
@@ -98,6 +101,8 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "persistent-cache",
         "problems",
         "problems-api",
+        "problems-rendering",
+        "process-memory-services",
         "process-services",
         "resources",
         "runtime-api-info",
@@ -132,7 +137,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
      * Change this whenever you add or remove subprojects for distribution-packaged plugins (lib/plugins).
      */
     int getPackagedPluginsJarCount() {
-        80
+        81
     }
 
     /**

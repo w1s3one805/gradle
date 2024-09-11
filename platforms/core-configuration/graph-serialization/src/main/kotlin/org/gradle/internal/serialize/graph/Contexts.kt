@@ -58,7 +58,9 @@ class DefaultWriteContext(
     problemsListener: ProblemsListener,
 
     private
-    val classEncoder: ClassEncoder
+    val classEncoder: ClassEncoder,
+
+    val stringEncoder: StringEncoder = InlineStringEncoder
 
 ) : AbstractIsolateContext<WriteIsolate>(codec, problemsListener), CloseableWriteContext, Encoder by encoder {
 
@@ -79,6 +81,12 @@ class DefaultWriteContext(
     override val isolate: WriteIsolate
         get() = getIsolate()
 
+    override fun writeString(value: CharSequence) =
+        stringEncoder.writeString(encoder, value)
+
+    override fun writeNullableString(value: CharSequence?) =
+        stringEncoder.writeNullableString(encoder, value)
+
     override suspend fun write(value: Any?) {
         getCodec().run {
             encode(value)
@@ -91,9 +99,9 @@ class DefaultWriteContext(
         }
     }
 
-    // TODO: consider interning strings
-    override fun writeString(string: CharSequence) =
-        encoder.writeString(string)
+    override fun writeClassLoader(classLoader: ClassLoader?) = classEncoder.run {
+        encodeClassLoader(classLoader)
+    }
 
     override fun newIsolate(owner: IsolateOwner): WriteIsolate =
         DefaultWriteIsolate(owner)
@@ -105,12 +113,56 @@ value class ClassLoaderRole(val local: Boolean)
 
 
 interface ClassEncoder {
-    fun WriteContext.encodeClass(type: Class<*>)
+    fun Encoder.encodeClass(type: Class<*>)
+
+    /**
+     * Tries to encode the given [classLoader].
+     */
+    fun Encoder.encodeClassLoader(classLoader: ClassLoader?) = Unit
 }
 
 
 interface ClassDecoder {
-    fun ReadContext.decodeClass(): Class<*>
+    fun Decoder.decodeClass(): Class<*>
+
+    /**
+     * Decodes a [ClassLoader] previously encoded via [ClassEncoder.encodeClassLoader].
+     *
+     * @return the previously encoded [ClassLoader] or `null` when [ClassEncoder.encodeClassLoader] returns `false`
+     */
+    fun Decoder.decodeClassLoader(): ClassLoader? = null
+}
+
+
+interface StringEncoder {
+    fun writeNullableString(encoder: Encoder, string: CharSequence?)
+    fun writeString(encoder: Encoder, string: CharSequence)
+}
+
+
+object InlineStringEncoder : StringEncoder {
+    override fun writeNullableString(encoder: Encoder, string: CharSequence?) {
+        encoder.writeNullableString(string)
+    }
+
+    override fun writeString(encoder: Encoder, string: CharSequence) {
+        encoder.writeString(string)
+    }
+}
+
+
+interface StringDecoder {
+    fun readNullableString(decoder: Decoder): String?
+    fun readString(decoder: Decoder): String
+}
+
+
+object InlineStringDecoder : StringDecoder {
+    override fun readNullableString(decoder: Decoder): String? =
+        decoder.readNullableString()
+
+    override fun readString(decoder: Decoder): String =
+        decoder.readString()
 }
 
 
@@ -128,7 +180,9 @@ class DefaultReadContext(
     problemsListener: ProblemsListener,
 
     private
-    val classDecoder: ClassDecoder
+    val classDecoder: ClassDecoder,
+
+    val stringDecoder: StringDecoder = InlineStringDecoder
 
 ) : AbstractIsolateContext<ReadIsolate>(codec, problemsListener), CloseableReadContext, Decoder by decoder {
 
@@ -157,12 +211,22 @@ class DefaultReadContext(
         (decoder as? AutoCloseable)?.close()
     }
 
+    override fun readNullableString(): String? =
+        stringDecoder.readNullableString(decoder)
+
+    override fun readString(): String =
+        stringDecoder.readString(decoder)
+
     override suspend fun read(): Any? = getCodec().run {
         decode()
     }
 
     override fun readClass(): Class<*> = classDecoder.run {
         decodeClass()
+    }
+
+    override fun readClassLoader(): ClassLoader? = classDecoder.run {
+        decodeClassLoader()
     }
 
     override val isolate: ReadIsolate

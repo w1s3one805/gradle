@@ -22,6 +22,7 @@ import gradlebuild.basics.buildBranch
 import gradlebuild.basics.buildCommitId
 import gradlebuild.basics.capitalize
 import gradlebuild.basics.defaultPerformanceBaselines
+import gradlebuild.basics.getBuildEnvironmentExtension
 import gradlebuild.basics.includePerformanceTestScenarios
 import gradlebuild.basics.logicalBranch
 import gradlebuild.basics.performanceBaselines
@@ -43,6 +44,7 @@ import gradlebuild.performance.generator.tasks.JvmProjectGeneratorTask
 import gradlebuild.performance.generator.tasks.ProjectGeneratorTask
 import gradlebuild.performance.generator.tasks.TemplateProjectGeneratorTask
 import gradlebuild.performance.tasks.BuildCommitDistribution
+import gradlebuild.performance.tasks.DefaultCommandExecutor
 import gradlebuild.performance.tasks.DetermineBaselines
 import gradlebuild.performance.tasks.PerformanceTest
 import gradlebuild.performance.tasks.PerformanceTestReport
@@ -174,7 +176,7 @@ class PerformanceTestPlugin : Plugin<Project> {
         }
 
         tasks.withType<TemplateProjectGeneratorTask>().configureEach {
-            sharedTemplateDirectory = project(":internal-performance-testing").file("src/templates")
+            sharedTemplateDirectory = project(":internal-performance-testing").isolated.projectDirectory.file("src/templates").asFile
         }
     }
 
@@ -318,9 +320,10 @@ class PerformanceTestPlugin : Plugin<Project> {
         // extension.baselines -> determineBaselines.configuredBaselines
         // determineBaselines.determinedBaselines -> performanceTest.baselines
         // determineBaselines.determinedBaselines -> buildCommitDistribution.baselines
-        val determineBaselines = tasks.register("determineBaselines", DetermineBaselines::class, false)
+        val commandExecutor = objects.newInstance<DefaultCommandExecutor>()
+        val determineBaselines = tasks.register("determineBaselines", DetermineBaselines::class, false, commandExecutor)
         val buildCommitDistribution = tasks.register("buildCommitDistribution", BuildCommitDistribution::class)
-        val buildCommitDistributionsDir = project.rootProject.layout.buildDirectory.dir("commit-distributions")
+        val buildCommitDistributionsDir = project.getBuildEnvironmentExtension().rootProjectBuildDir.dir("commit-distributions")
 
         determineBaselines.configure {
             configuredBaselines = extension.baselines

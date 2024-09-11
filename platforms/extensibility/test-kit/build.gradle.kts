@@ -45,6 +45,7 @@ dependencies {
     integTestImplementation(projects.launcher)
     integTestImplementation(projects.buildOption)
     integTestImplementation(projects.jvmServices)
+    integTestImplementation(testFixtures(projects.buildConfiguration))
     integTestImplementation(libs.slf4jApi)
     integTestImplementation(libs.jetbrainsAnnotations)
 
@@ -78,4 +79,7 @@ tasks {
             exclude("org/gradle/testkit/runner/enduser/GradleRunnerSamplesEndUserIntegrationTest*") // cannot be parameterized for both Groovy 3 and 4
         }
     }
+}
+tasks.isolatedProjectsIntegTest {
+    enabled = false
 }

@@ -46,8 +46,8 @@ import org.gradle.test.fixtures.ivy.IvyFileRepository
 import org.gradle.test.fixtures.maven.M2Installation
 import org.gradle.test.fixtures.maven.MavenFileRepository
 import org.gradle.test.fixtures.maven.MavenLocalRepository
+import org.gradle.util.Matchers
 import org.gradle.util.internal.VersionNumber
-import org.hamcrest.CoreMatchers
 import org.hamcrest.Matcher
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
@@ -60,7 +60,6 @@ import java.util.regex.Pattern
 import static org.gradle.integtests.fixtures.timeout.IntegrationTestTimeout.DEFAULT_TIMEOUT_SECONDS
 import static org.gradle.test.fixtures.dsl.GradleDsl.GROOVY
 import static org.gradle.util.Matchers.matchesRegexp
-import static org.gradle.util.Matchers.normalizedLineSeparators
 
 /**
  * Spockified version of AbstractIntegrationTest.
@@ -80,7 +79,7 @@ abstract class AbstractIntegrationSpec extends Specification implements Language
 
     GradleDistribution distribution = new UnderDevelopmentGradleDistribution(getBuildContext())
     private GradleExecuter executor
-    private boolean ignoreCleanupAssertions
+    boolean ignoreCleanupAssertions
 
     private boolean enableProblemsApiCheck = false
     private BuildOperationsFixture buildOperationsFixture = null
@@ -128,9 +127,15 @@ abstract class AbstractIntegrationSpec extends Specification implements Language
     }
 
     def cleanup() {
+        // TODO: Problems API checks should be integrated into the executor, not the integration spec.
+        // Similar to how we do it with deprecation checks
+        // This allows different executions to keep their emitted problems separate.
+        // See how this is done in SmokeTestGradleRunner
         if (enableProblemsApiCheck) {
             collectedProblems.each {
-                KnownProblemIds.assertIsKnown(it)
+                if(!ignoreCleanupAssertions) {
+                    KnownProblemIds.assertIsKnown(it)
+                }
             }
 
             if (getReceivedProblems().every { it == null }) {
@@ -142,7 +147,9 @@ abstract class AbstractIntegrationSpec extends Specification implements Language
                         printCollectedProblems(problem, index)
                     }
                 }
-                throw new AssertionError("Not all received problems were validated")
+                if (!ignoreCleanupAssertions) {
+                    throw new AssertionError("Not all received problems were validated")
+                }
             }
         }
 
@@ -475,13 +482,17 @@ tmpdir is currently ${System.getProperty("java.io.tmpdir")}""")
     }
 
     protected ExecutionFailure runAndFail(String... tasks) {
-        fails(*tasks)
+        fails(Arrays.asList(tasks))
     }
 
     protected ExecutionFailure fails(String... tasks) {
+        fails(Arrays.asList(tasks))
+    }
+
+    protected ExecutionFailure fails(List<String> tasks) {
         resetProblemApiCheck()
 
-        failure = executer.withTasks(*tasks).runWithFailure()
+        failure = executer.withTasks(tasks).runWithFailure()
 
         if (enableProblemsApiCheck && getReceivedProblems().isEmpty()) {
             throw new AssertionFailedError("Expected to find a problem emitted via the 'Problems' service for the failing build, but none was received.")
@@ -548,8 +559,9 @@ tmpdir is currently ${System.getProperty("java.io.tmpdir")}""")
         failure.assertThatCause(containsNormalizedString(description))
     }
 
+    // TODO: Inline and remove.
     protected Matcher<String> containsNormalizedString(String description) {
-        normalizedLineSeparators(CoreMatchers.containsString(description))
+        return Matchers.containsNormalizedString(description)
     }
 
     private assertHasResult() {
@@ -717,7 +729,7 @@ tmpdir is currently ${System.getProperty("java.io.tmpdir")}""")
     }
 
     /**
-     * Called by {@link ToBeFixedForConfigurationCacheExtension} when a test fails as expected so no further checks are applied.
+     * Called by {@link ToBeFixedSpecInterceptor} when a test fails as expected so no further checks are applied.
      */
     void ignoreCleanupAssertions() {
         this.ignoreCleanupAssertions = true
@@ -766,6 +778,13 @@ tmpdir is currently ${System.getProperty("java.io.tmpdir")}""")
             operation.progress(DefaultProblemProgressDetails.class).collect {
                 def problemDetails = it.details.get("problem") as Map<String, Object>
                 return new ReceivedProblem(operation.id, problemDetails)
+            }.findAll {
+                // Filter out all java version deprecation problems
+                // TODO: The problems API infrastructure should be built-into the executor.
+                // However, since it isn't we do not know if the test has disabled the filtering of
+                // these deprecation logs from the normal deprecation checks.
+                // So, just ignore them all the time, even if the test has requested to not ignore these warnings.
+                it.fqid != 'deprecation:executing-gradle-on-jvm-versions-and-lower'
             }
         }
     }
@@ -816,6 +835,11 @@ tmpdir is currently ${System.getProperty("java.io.tmpdir")}""")
                 }
                 if (p1.details != p2.details) {
                     return p1.details <=> p2.details
+                }
+                if (p1.additionalData.getAsMap() != p2.additionalData.getAsMap()) {
+                    String sortableP1 = p1.additionalData.getAsMap().collect { k, v -> "$k=$v" }.sort().join(", ")
+                    String sortableP2 = p2.additionalData.getAsMap().collect { k, v -> "$k=$v" }.sort().join(", ")
+                    return sortableP1 <=> sortableP2
                 }
                 return 0
             }

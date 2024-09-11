@@ -22,6 +22,7 @@ import org.gradle.internal.configuration.problems.PropertyProblem
 import org.gradle.internal.configuration.problems.PropertyTrace
 import org.gradle.internal.configuration.problems.StructuredMessageBuilder
 import org.gradle.internal.extensions.stdlib.uncheckedCast
+import org.gradle.internal.extensions.stdlib.useToRun
 import org.gradle.internal.serialize.Decoder
 import org.gradle.internal.serialize.Encoder
 
@@ -57,10 +58,26 @@ interface WriteContext : MutableIsolateContext, Encoder {
     suspend fun write(value: Any?)
 
     fun writeClass(type: Class<*>)
+
+    /**
+     * @see ClassEncoder.encodeClassLoader
+     */
+    fun writeClassLoader(classLoader: ClassLoader?) = Unit
 }
 
 
 interface CloseableWriteContext : WriteContext, AutoCloseable
+
+
+fun <I, R> CloseableWriteContext.writeWith(
+    argument: I,
+    writeOperation: suspend WriteContext.(I) -> R
+): R =
+    useToRun {
+        runWriteOperation {
+            writeOperation(argument)
+        }
+    }
 
 
 interface Tracer {
@@ -90,6 +107,11 @@ interface ReadContext : IsolateContext, MutableIsolateContext, Decoder {
     fun readClass(): Class<*>
 
     /**
+     * @see ClassDecoder.decodeClassLoader
+     */
+    fun readClassLoader(): ClassLoader? = null
+
+    /**
      * Defers the given [action] until all objects have been read.
      */
     fun onFinish(action: () -> Unit)
@@ -108,7 +130,18 @@ interface MutableReadContext : ReadContext {
 
 interface CloseableReadContext : MutableReadContext, AutoCloseable {
     fun finish()
+
 }
+
+
+fun <I, R> CloseableReadContext.readWith(argument: I, readOperation: suspend MutableReadContext.(I) -> R) =
+    useToRun {
+        runReadOperation {
+            readOperation(argument)
+        }.also {
+            finish()
+        }
+    }
 
 
 inline

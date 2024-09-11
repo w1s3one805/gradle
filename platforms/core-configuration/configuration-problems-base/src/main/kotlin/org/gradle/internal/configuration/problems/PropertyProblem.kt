@@ -16,9 +16,11 @@
 
 package org.gradle.internal.configuration.problems
 
-import org.gradle.api.internal.DocumentationRegistry
 import org.gradle.internal.DisplayName
+import org.gradle.internal.cc.impl.problems.JsonWriter
 import org.gradle.internal.code.UserCodeSource
+import org.gradle.internal.configuration.problems.StructuredMessage.Fragment.Reference
+import org.gradle.internal.configuration.problems.StructuredMessage.Fragment.Text
 import org.gradle.internal.problems.failure.Failure
 import org.gradle.problems.Location
 import kotlin.reflect.KClass
@@ -56,8 +58,6 @@ enum class DocumentationSection(val anchor: String) {
     RequirementsUseProjectDuringExecution("config_cache:requirements:use_project_during_execution")
 }
 
-fun documentationLinkFor(section: DocumentationSection) =
-    DocumentationRegistry().documentationLinkFor(section)
 
 typealias StructuredMessageBuilder = StructuredMessage.Builder.() -> Unit
 
@@ -83,8 +83,8 @@ data class StructuredMessage(val fragments: List<Fragment>) {
      */
     fun render(quote: Char = SINGLE_QUOTE) = fragments.joinToString(separator = "") { fragment ->
         when (fragment) {
-            is Fragment.Text -> fragment.text
-            is Fragment.Reference -> "$quote${fragment.name}$quote"
+            is Text -> fragment.text
+            is Reference -> "$quote${fragment.name}$quote"
         }
     }
 
@@ -99,7 +99,7 @@ data class StructuredMessage(val fragments: List<Fragment>) {
 
     companion object {
 
-        fun forText(text: String) = StructuredMessage(listOf(Fragment.Text(text)))
+        fun forText(text: String) = StructuredMessage(listOf(Text(text)))
 
         fun build(builder: StructuredMessageBuilder) = StructuredMessage(
             Builder().apply(builder).fragments
@@ -112,11 +112,11 @@ data class StructuredMessage(val fragments: List<Fragment>) {
         val fragments = mutableListOf<Fragment>()
 
         fun text(string: String): Builder = apply {
-            fragments.add(Fragment.Text(string))
+            fragments.add(Text(string))
         }
 
         fun reference(name: String): Builder = apply {
-            fragments.add(Fragment.Reference(name))
+            fragments.add(Reference(name))
         }
 
         fun reference(type: Class<*>): Builder = apply {
@@ -132,6 +132,19 @@ data class StructuredMessage(val fragments: List<Fragment>) {
         }
 
         fun build(): StructuredMessage = StructuredMessage(fragments.toList())
+    }
+}
+
+fun JsonWriter.writeStructuredMessage(message: StructuredMessage) {
+    jsonObjectList(message.fragments) { fragment ->
+        writeFragment(fragment)
+    }
+}
+
+fun JsonWriter.writeFragment(fragment: StructuredMessage.Fragment) {
+    when (fragment) {
+        is Reference -> property("name", fragment.name)
+        is Text -> property("text", fragment.text)
     }
 }
 

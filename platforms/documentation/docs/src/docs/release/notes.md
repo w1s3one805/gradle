@@ -8,6 +8,7 @@ Include only their name, impactful features should be called out separately belo
 
  THIS LIST SHOULD BE ALPHABETIZED BY [PERSON NAME] - the docs:updateContributorsInReleaseNotes task will enforce this ordering, which is case-insensitive.
 -->
+
 We would like to thank the following community members for their contributions to this release of Gradle:
 
 Be sure to check out the [public roadmap](https://blog.gradle.org/roadmap-announcement) for insight into what's planned for future releases.
@@ -55,16 +56,40 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -->
 <a name="config-cache"></a>
 ### Configuration cache improvements
 
-The [configuration cache](userguide/configuration_cache.html) improves build performance by caching the result of
-the configuration phase. Using the configuration cache, Gradle can skip the configuration phase entirely when
-nothing that affects the build configuration has changed.
+The [configuration cache](userguide/configuration_cache.html) improves build performance by caching the result of the configuration phase. Gradle uses the configuration cache to skip the configuration phase entirely when nothing that affects the build configuration has changed.
 
-#### Report improvements
+#### Parallel caching for faster loading times
 
-TBD:
-- Incompatible tasks tab
-- Copy experience
-- Invalidation reason (+ message improvements?)
+Storing and loading of the configuration cache can now be performed in parallel, resulting in better performance for cache misses and hits. 
+To enable the feature in `gradle.properties`:
+
+```text
+// gradle.properties
+org.gradle.configuration-cache.parallel=true
+```
+
+Note that this is an incubating feature and may expose concurrency issues in some builds. 
+
+See the [configuration cache](userguide/configuration_cache.html#config_cache:usage:parallel) documentation for more details.
+
+<a name="native-plugin-improvements"></a>
+### Core plugin improvements
+
+Gradle provides core plugins for build authors, offering essential tools to simplify project setup and configuration across various languages and platforms.
+
+#### Configuration cache compatibility for Swift and C++ plugins
+
+The following Swift and C++ plugins are now [configuration cache](userguide/performance.html#enable_configuration_cache) compatible: 
+- [Swift application](userguide/swift_application_plugin.html)
+- [Swift library](userguide/swift_library_plugin.html)
+- [XCTest](userguide/xctest_plugin.html)
+- [C++ application](userguide/cpp_application_plugin.html)
+- [C++ library](userguide/cpp_library_plugin.html)
+- [CppUnit](userguide/cpp_unit_test_plugin.html)
+- [GoogleTest](userguide/cpp_testing.html)
+- [Visual Studio](userguide/visual_studio_plugin.html)
+
+The [`xcode`](userguide/xcode_plugin.html) is not yet compatible.
 
 
 <!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -77,9 +102,13 @@ ADD RELEASE FEATURES ABOVE
 Promoted features are features that were incubating in previous versions of Gradle but are now supported and subject to backward compatibility.
 See the User Manual section on the “[Feature Lifecycle](userguide/feature_lifecycle.html)” for more information.
 
-The following are the features that have been promoted in this Gradle release:
+The following are the features that have been promoted in this Gradle release.
 
-* `website` and `vcsUrl` properties of `GradlePluginDevelopmentExtension`.
+### Stable Build Features API
+
+The [`BuildFeatures`](javadoc/org/gradle/api/configuration/BuildFeatures.html) API is now stable.
+It allows checking the status of Gradle features such as [`configurationCache`](javadoc/org/gradle/api/configuration/BuildFeatures.html#getConfigurationCache())
+and [`isolatedProjects`](javadoc/org/gradle/api/configuration/BuildFeatures.html#getIsolatedProjects()).
 
 ## Fixed issues
 
