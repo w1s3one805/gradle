@@ -16,14 +16,16 @@
 
 package org.gradle.internal.cc.impl.serialize
 
+import org.gradle.internal.cc.base.services.ProjectRefResolver
 import org.gradle.internal.extensions.stdlib.uncheckedCast
 import org.gradle.internal.serialize.graph.CloseableReadContext
 import org.gradle.internal.serialize.graph.CloseableWriteContext
-import org.gradle.internal.serialize.graph.SharedObjectDecoder
-import org.gradle.internal.serialize.graph.SharedObjectEncoder
 import org.gradle.internal.serialize.graph.IsolateContext
 import org.gradle.internal.serialize.graph.ReadContext
+import org.gradle.internal.serialize.graph.SharedObjectDecoder
+import org.gradle.internal.serialize.graph.SharedObjectEncoder
 import org.gradle.internal.serialize.graph.WriteContext
+import org.gradle.internal.serialize.graph.ownerService
 import org.gradle.internal.serialize.graph.runReadOperation
 import org.gradle.internal.serialize.graph.runWriteOperation
 import java.util.concurrent.ConcurrentHashMap
@@ -83,6 +85,7 @@ class DefaultSharedObjectEncoder(
 class DefaultSharedObjectDecoder(
     private val globalContext: CloseableReadContext
 ) : SharedObjectDecoder, AutoCloseable {
+
     enum class ReaderState {
         READY, STARTED, RUNNING, STOPPING, STOPPED
     }
@@ -97,6 +100,7 @@ class DefaultSharedObjectDecoder(
         val latch = CountDownLatch(1)
 
         private
+        @Volatile
         var value: Any? = null
 
         fun complete(v: Any) {
@@ -106,11 +110,18 @@ class DefaultSharedObjectDecoder(
 
         fun get(): Any {
             val state = state.get()
-            if (value == null && state < ReaderState.STOPPED && !latch.await(1, TimeUnit.MINUTES)) {
+            // Only await if the reading thread is still running.
+            // This saves us a minute in case the reading code is broken and doesn't countDown() the latch properly.
+            // See the null check below.
+            if (state < ReaderState.STOPPED && !latch.await(1, TimeUnit.MINUTES)) {
                 throw TimeoutException("Timeout while waiting for value, state was $state")
             }
-            require(value != null) { "State is: $state"}
-            return value!!
+            val result = value
+            require(result != null) {
+                // Reading thread hasn't written the value before completing/calling countDown(). This can only happen if the decoder has a bug.
+                "State is: $state"
+            }
+            return result
         }
     }
 
@@ -127,26 +138,31 @@ class DefaultSharedObjectDecoder(
             "Unexpected state: $state"
         }
         globalContext.run {
-            while (state.get() == ReaderState.RUNNING) {
-                val id = readSmallInt()
-                if (id == EOF) {
-                    stopReading()
-                    break
-                }
-                val read = runReadOperation {
-                    read()!!
-                }
-                values.compute(id) { _, value ->
-                    when (value) {
-                        is FutureValue -> value.complete(read)
-                        else -> require(value == null)
+            projectRefResolver.withWaitingForProjectsAllowed {
+                while (state.get() == ReaderState.RUNNING) {
+                    val id = readSmallInt()
+                    if (id == EOF) {
+                        stopReading()
+                        break
                     }
-                    read
+                    val read = runReadOperation {
+                        read()!!
+                    }
+                    values.compute(id) { _, value ->
+                        when (value) {
+                            is FutureValue -> value.complete(read)
+                            else -> require(value == null)
+                        }
+                        read
+                    }
                 }
             }
             state.set(ReaderState.STOPPED)
         }
     }
+
+    private val ReadContext.projectRefResolver
+        get() = ownerService<ProjectRefResolver>()
 
     private
     fun ReadContext.resolveValue(id: Int): Any {
@@ -155,9 +171,9 @@ class DefaultSharedObjectDecoder(
             "id: $id - $this"
         }
         return when (val existing = values.computeIfAbsent(id) { FutureValue() }) {
-                is FutureValue -> existing.get()
-                else -> existing
-            }
+            is FutureValue -> existing.get()
+            else -> existing
+        }
     }
 
     private fun startReadingIfNeeded() {
@@ -167,11 +183,9 @@ class DefaultSharedObjectDecoder(
     }
 
     override fun close() {
-        try {
+        globalContext.use {
             stopReading()
             reader.join(TimeUnit.MINUTES.toMillis(1))
-        } finally {
-            globalContext.close()
         }
     }
 
@@ -185,6 +199,6 @@ class DefaultSharedObjectDecoder(
     }
 }
 
-fun <T: Any, C: IsolateContext> C.synchronized(action: C.() -> T?) = synchronized(this) {
+fun <T : Any, C : IsolateContext> C.synchronized(action: C.() -> T?) = synchronized(this) {
     action()
 }

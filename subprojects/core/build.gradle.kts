@@ -84,6 +84,7 @@ dependencies {
     api(projects.buildCacheLocal)
     api(projects.buildCachePackaging)
     api(projects.buildCacheSpi)
+    api(projects.buildInitSpecs)
     api(projects.buildOperations)
     api(projects.buildOption)
     api(projects.cli)
@@ -167,6 +168,7 @@ dependencies {
     // TODO investigate why we depend on SSHD as a platform for internal-integ-testing
     runtimeOnly(libs.antJunit)
 
+    testImplementation(projects.buildInit)
     testImplementation(projects.platformJvm)
     testImplementation(projects.platformNative)
     testImplementation(projects.testingBase)
