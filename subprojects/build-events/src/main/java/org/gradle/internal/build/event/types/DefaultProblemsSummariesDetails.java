@@ -17,12 +17,12 @@
 package org.gradle.internal.build.event.types;
 
 import org.gradle.api.NonNullApi;
-import org.gradle.tooling.internal.protocol.InternalProblemId;
 import org.gradle.tooling.internal.protocol.InternalProblemSummariesDetails;
 import org.gradle.tooling.internal.protocol.InternalProblemSummary;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 @NonNullApi
 public class DefaultProblemsSummariesDetails implements InternalProblemSummariesDetails, Serializable {
@@ -38,24 +38,20 @@ public class DefaultProblemsSummariesDetails implements InternalProblemSummaries
         return problemIdCounts;
     }
 
-    @NonNullApi
-    public static class DefaultProblemSummary implements InternalProblemSummary {
-        private InternalProblemId problemId;
-        private Integer count;
-
-        public DefaultProblemSummary(InternalProblemId problemId, Integer count) {
-            this.problemId = problemId;
-            this.count = count;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
         }
-
-        @Override
-        public InternalProblemId getProblemId() {
-            return problemId;
+        if (!(o instanceof DefaultProblemsSummariesDetails)) {
+            return false;
         }
+        DefaultProblemsSummariesDetails that = (DefaultProblemsSummariesDetails) o;
+        return Objects.equals(problemIdCounts, that.problemIdCounts);
+    }
 
-        @Override
-        public Integer getCount() {
-            return count;
-        }
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(problemIdCounts);
     }
 }

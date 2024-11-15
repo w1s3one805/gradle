@@ -133,7 +133,8 @@ class DependencyGraphBuilderTest extends Specification {
             Mock(DependencyMetadataFactory),
             new DefaultExcludeRuleConverter(new DefaultImmutableModuleIdentifierFactory())
         ),
-        TestUtil.calculatedValueContainerFactory()
+        TestUtil.calculatedValueContainerFactory(),
+        TestUtil.inMemoryCacheFactory()
     )
 
     def variantSelector = new GraphVariantSelector(AttributeTestUtil.services(), DependencyManagementTestUtil.newFailureHandler())
@@ -155,8 +156,6 @@ class DependencyGraphBuilderTest extends Specification {
     def rootComponent = Stub(RootComponentMetadataBuilder.RootComponentState) {
         getRootComponent() >> root
         getRootVariant() >> root.getConfigurationLegacy('root')
-        getComponentIdentifier() >> root.id
-        getModuleVersionIdentifier() >> root.moduleVersionId
         getAttributesSchema() >> attributesSchema
     }
 
