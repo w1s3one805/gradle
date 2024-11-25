@@ -56,7 +56,7 @@ import org.gradle.api.internal.artifacts.dsl.dependencies.UnknownProjectFinder;
 import org.gradle.api.internal.artifacts.ivyservice.DefaultConfigurationResolver;
 import org.gradle.api.internal.artifacts.ivyservice.IvyContextManager;
 import org.gradle.api.internal.artifacts.ivyservice.ResolutionExecutor;
-import org.gradle.api.internal.artifacts.ivyservice.ShortCircuitEmptyConfigurationResolver;
+import org.gradle.api.internal.artifacts.ivyservice.ShortCircuitingResolutionExecutor;
 import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DependencySubstitutionRules;
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.ResolverProviderFactories;
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.parser.GradleModuleMetadataParser;
@@ -92,7 +92,6 @@ import org.gradle.api.internal.artifacts.transform.TransformInvocationFactory;
 import org.gradle.api.internal.artifacts.transform.TransformParameterScheme;
 import org.gradle.api.internal.artifacts.transform.TransformRegistrationFactory;
 import org.gradle.api.internal.artifacts.type.ArtifactTypeRegistry;
-import org.gradle.api.internal.artifacts.type.DefaultArtifactTypeRegistry;
 import org.gradle.api.internal.attributes.AttributeDescriberRegistry;
 import org.gradle.api.internal.attributes.AttributeDesugaring;
 import org.gradle.api.internal.attributes.AttributesFactory;
@@ -291,6 +290,7 @@ public class DefaultDependencyManagementServices implements DependencyManagement
             registration.add(TransformedVariantConverter.class);
             registration.add(ResolutionExecutor.class);
             registration.add(ResolverProviderFactories.class);
+            registration.add(ArtifactTypeRegistry.class);
         }
 
         @Provides
@@ -486,11 +486,6 @@ public class DefaultDependencyManagementServices implements DependencyManagement
         }
 
         @Provides
-        ArtifactTypeRegistry createArtifactTypeRegistry(Instantiator instantiator, AttributesFactory attributesFactory, CollectionCallbackActionDecorator decorator, VariantTransformRegistry transformRegistry) {
-            return new DefaultArtifactTypeRegistry(instantiator, attributesFactory, decorator, transformRegistry);
-        }
-
-        @Provides
         DependencyHandler createDependencyHandler(
             Instantiator instantiator,
             ConfigurationContainerInternal configurationContainer,
@@ -611,13 +606,14 @@ public class DefaultDependencyManagementServices implements DependencyManagement
             ResolutionExecutor resolutionExecutor,
             AttributeDesugaring attributeDesugaring
         ) {
-            ConfigurationResolver defaultResolver = new DefaultConfigurationResolver(
-                repositoriesSupplier,
-                resolutionExecutor
+            ShortCircuitingResolutionExecutor shortCircuitingResolutionExecutor = new ShortCircuitingResolutionExecutor(
+                resolutionExecutor,
+                attributeDesugaring
             );
 
-            return new ShortCircuitEmptyConfigurationResolver(
-                defaultResolver,
+            return new DefaultConfigurationResolver(
+                repositoriesSupplier,
+                shortCircuitingResolutionExecutor,
                 attributeDesugaring
             );
         }
