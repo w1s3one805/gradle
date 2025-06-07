@@ -76,7 +76,7 @@ dependencies {
         api("org.codehaus.groovy:groovy:$groovyVersion")
         api("org.codehaus.groovy.modules.http-builder:http-builder:0.7.2") // TODO maybe change group name when upgrading to Groovy 4
         api("org.codenarc:CodeNarc:$codenarcVersion")
-        api("org.eclipse.jgit:org.eclipse.jgit:5.13.3.202401111512-r")
+        api("org.eclipse.jgit:org.eclipse.jgit:6.10.1.202505221210-r")
         api("org.javassist:javassist:3.27.0-GA")
         api("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
         api("org.jsoup:jsoup:1.15.3")
